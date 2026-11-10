@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Extracts, updates and compiles the translations of a WordPress project.
+ *
+ *     vendor/bin/pollora-i18n extract --domain=my-theme --path=app --path=resources
+ *     vendor/bin/pollora-i18n update  --domain=my-theme --locale=fr_FR
+ *     vendor/bin/pollora-i18n compile --domain=my-theme
+ *
+ * It needs symfony/console, which the package only suggests: the translations of a request never load it.
+ */
+
+$autoload = null;
+
+foreach ([__DIR__.'/../../../autoload.php', __DIR__.'/../vendor/autoload.php'] as $candidate) {
+    if (is_file($candidate)) {
+        $autoload = $candidate;
+
+        break;
+    }
+}
+
+if ($autoload === null) {
+    fwrite(STDERR, "pollora-i18n: the Composer autoloader was not found. Run \"composer install\" first.\n");
+
+    exit(1);
+}
+
+require $autoload;
+
+if (! class_exists(Symfony\Component\Console\Application::class)) {
+    fwrite(STDERR, "pollora-i18n: symfony/console is not installed. Install it with \"composer require --dev symfony/console\".\n");
+
+    exit(1);
+}
+
+exit(Pollora\I18n\Tooling\Console\Cli::run());

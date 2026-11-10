@@ -7,7 +7,7 @@
 
 Translatable labels for WordPress code that declares them as constants, such as the arguments of a PHP attribute, and the tooling to extract them into a catalogue. It runs with or without Laravel.
 
-> Part of [Pollora](https://pollora.dev), the Laravel framework for WordPress. It is an early skeleton: the runtime and the first catalogue object exist, the extraction does not yet.
+> Part of [Pollora](https://pollora.dev), the Laravel framework for WordPress. It is an early release: the runtime, the catalogue formats, the extraction of attributes and the `pollora-i18n` binary exist.
 
 ## Installation
 
@@ -38,6 +38,35 @@ $label = Translator::translate(PostType::class, 'singular', 'Book', 'my-domain')
 ```
 
 `translate()` returns the string unchanged when WordPress is not loaded, when the field is not declared translatable, or when the site runs in `en_US` with no catalogue loaded for the domain. Otherwise it makes one call to `__()`. It uses no reflection and reads no file.
+
+## The command line
+
+`vendor/bin/pollora-i18n` runs the whole chain without Laravel: extract the strings, update the translated files, compile them for WordPress. It needs `symfony/console` (`composer require --dev symfony/console`); the web request never loads it.
+
+```bash
+vendor/bin/pollora-i18n extract --domain=my-theme --path=app --path=resources --cache=build/i18n.php
+vendor/bin/pollora-i18n update  --domain=my-theme --locale=fr_FR
+vendor/bin/pollora-i18n compile --domain=my-theme
+```
+
+```text
+created   languages/my-theme.pot
+1 created, 0 updated, 0 unchanged
+```
+
+Each command prints one line per file (`created`, `updated` or `unchanged`) and a summary. A file is written only when its bytes change, so a second run writes nothing and leaves every modification time alone. `--dry-run` writes nothing and prints the same lines and figures, `--quiet` prints nothing (the exit code still tells), `-v` adds how many files were parsed.
+
+| Command | Does | Options |
+| --- | --- | --- |
+| `extract` | Builds `languages/{domain}.pot` from the translatable attributes of the given folders | `--domain` and `--path` (repeatable) are required. `--output`, `--cache` (parse only the files that changed), `--merge` (repeatable: union a template from `wp i18n make-pot`, for JavaScript and `block.json`), `--installed` (default `vendor/composer/installed.json` when present), `--declarations` (repeatable: a file returning `[Class::class => ['field']]`), `--strict`, `--dry-run` |
+| `update` | Merges the `.pot` into every `{domain}-{locale}.po` of the folder, keeping translations; strings that disappeared become obsolete | `--domain` is required. `--pot` (default `{languages}/{domain}.pot`), `--languages` (default `languages`), `--locale` (repeatable: create the file of a locale), `--dry-run` |
+| `compile` | Writes `{domain}-{locale}.mo` and `.l10n.php` next to each `.po` file, with the translated, non-fuzzy, non-obsolete messages only | `--languages` (default `languages`), `--domain` (default: every `.po`), `--format=mo,php` (default both), `--force` (skip the "older than the `.po`" check), `--dry-run` |
+
+The commands are also named `pollora:i18n:extract`, `pollora:i18n:update` and `pollora:i18n:compile`.
+
+Exit codes: `0` done, `1` a file could not be read, parsed or written, `2` an option is missing or invalid (nothing was done), `3` `extract --strict` found a string it could not extract (the template is written all the same). Warnings (a non-literal argument, no attribute declared) go to the error output as `warning: file:line: message`.
+
+The `.pot` has no date and sorted messages, and its references are relative to the current folder, so the same sources give the same file on every machine.
 
 ## License
 

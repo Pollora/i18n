@@ -57,6 +57,10 @@ arch('the exceptions are final and extend RuntimeException')
         'Pollora\I18n\Tooling\InvalidCatalogMessageException',
         'Pollora\I18n\Tooling\PoParseException',
         'Pollora\I18n\Tooling\PoFileException',
+        'Pollora\I18n\Tooling\InvalidDeclarationException',
+        'Pollora\I18n\Tooling\AttributeSourceException',
+        'Pollora\I18n\Tooling\FileWriteException',
+        'Pollora\I18n\Tooling\InvalidRunException',
     ])
     ->toBeFinal()
     ->toExtend(RuntimeException::class);
