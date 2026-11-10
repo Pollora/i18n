@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Stands in for the three WordPress functions the runtime may call. The state
+ * Stands in for the four WordPress functions the runtime may call. The state
  * they answer from lives in $GLOBALS['i18n_wordpress'].
  */
 
@@ -24,4 +24,11 @@ function __(string $text, string $domain = 'default'): string
     $GLOBALS['i18n_wordpress']['calls']++;
 
     return '['.$domain.'] '.$text;
+}
+
+function _x(string $text, string $context, string $domain = 'default'): string
+{
+    $GLOBALS['i18n_wordpress']['calls']++;
+
+    return '['.$domain.'|'.$context.'] '.$text;
 }
