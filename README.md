@@ -39,6 +39,21 @@ $label = Translator::translate(PostType::class, 'singular', 'Book', 'my-domain')
 
 `translate()` returns the string unchanged when WordPress is not loaded, when the field is not declared translatable, or when the site runs in `en_US` with no catalogue loaded for the domain. Otherwise it makes one call to `__()`. It uses no reflection and reads no file.
 
+## Text in an array of arguments
+
+An attribute parameter that is an array mixes text people read with technical values, so no list of fields can say which is which. Mark the text where you write it:
+
+```php
+use Pollora\I18n\Runtime\Translatable as T;
+
+#[AdminColumns(['author' => new T('Written by'), 'rating' => new T('Rating', context: 'stars')])]
+final class Book {}
+```
+
+`new T('...', domain: 'my-domain', context: '...')` is allowed in an attribute argument. Cast to a string it gives its text as written, and the extraction finds it. The code that builds the registration calls `Translator::resolve($arguments, 'my-domain')` once: it walks the arrays (16 levels at most), replaces each `Translatable` by `__()` or, with a context, `_x()`, and leaves everything else alone. A value that is not an array comes back at once, and an array with no `Translatable` comes back unchanged, uncopied.
+
+A parameter typed `string` refuses the object (a `TypeError`): use `Translatable` where the parameter is an `array`, `mixed` or `string|Stringable`.
+
 ## The command line
 
 `vendor/bin/pollora-i18n` runs the whole chain without Laravel: extract the strings, update the translated files, compile them for WordPress. It needs `symfony/console` (`composer require --dev symfony/console`); the web request never loads it.
