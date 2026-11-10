@@ -279,7 +279,8 @@ it('ignores a cache that is corrupt, outdated or tampered with', function (strin
     'syntax error' => ['<?php return [;'],
     'not an array' => ['<?php return 3;'],
     'other version' => ["<?php return ['version' => 0, 'fields' => 'x', 'files' => []];"],
-    'entry of the wrong shape' => ["<?php return ['version' => 1, 'fields' => 'x', 'files' => ['a' => 'b']];"],
+    'version before Translatable' => ["<?php return ['version' => 1, 'fields' => 'x', 'files' => []];"],
+    'entry of the wrong shape' => ["<?php return ['version' => 2, 'fields' => 'x', 'files' => ['a' => 'b']];"],
 ]);
 
 it('ignores a cached entry of the wrong shape for a file', function (): void {

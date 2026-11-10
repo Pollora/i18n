@@ -15,11 +15,19 @@ use SplFileInfo;
 /**
  * Finds the strings of translatable attributes in PHP files.
  *
- * Which attributes, and which of their fields, comes from the TranslatableRegistry. A file is
- * read, then parsed only when it can hold such an attribute, one file at a time. With a cache
- * file, a file that did not change is not parsed again.
+ * Which attributes, and which of their fields, comes from the TranslatableRegistry. Besides,
+ * every `new Translatable('text')` and `new TranslatablePlural('singular', 'plural')` written in the
+ * arguments of any attribute is a string, whatever the attribute. A file is read, then parsed only
+ * when it can hold one of these, one file at a time. With a cache file, a file that did not change
+ * is not parsed again.
+ *
+ * A string found several times is one entry with all its references and comments; the translator
+ * comments (`comment:`) come before the provenance ones. When two occurrences disagree on the plural
+ * form the first one, by reference, is kept and the others are reported.
  *
  * @phpstan-import-type Record from AttributeCache
+ *
+ * @phpstan-type Occurrences array{msgid: string, context: string|null, occurrences: list<array{0: string, 1: string|null, 2: string, 3: string|null}>}
  */
 final class AttributeSource
 {
@@ -51,7 +59,7 @@ final class AttributeSource
         $examined = 0;
         $parsed = 0;
 
-        foreach ($needles === [] ? [] : $this->files($paths) as $file) {
+        foreach ($this->files($paths) as $file) {
             $contents = @file_get_contents($file);
 
             if ($contents === false) {
@@ -60,7 +68,7 @@ final class AttributeSource
                 continue;
             }
 
-            if (! str_contains($contents, '#[') || ! $this->mentionsAny($contents, $needles)) {
+            if (! $this->canHoldTranslatableAttribute($contents, $needles)) {
                 continue;
             }
 
@@ -80,25 +88,43 @@ final class AttributeSource
             }
 
             foreach ($entry['records'] as [$class, $field, $msgid, $domain, $line]) {
-                $key = $context === null ? $msgid : $context."\x04".$msgid;
-                $domain ??= $defaultDomain;
-                $strings[$domain][$key] ??= ['msgid' => $msgid, 'comments' => [], 'references' => []];
-                $strings[$domain][$key]['comments'][] = 'Attribute '.$this->shortName($class).'::'.$field;
-                $strings[$domain][$key]['references'][] = $this->reference($file, $line);
+                $this->add($strings, $domain ?? $defaultDomain, $context, $msgid, null, $this->reference($file, $line), 'Attribute '.$this->shortName($class).'::'.$field, null);
+            }
+
+            foreach ($entry['marked'] as [$class, $path, $msgid, $plural, $domain, $own, $comment, $line]) {
+                $this->add($strings, $domain ?? $defaultDomain, $own ?? $context, $msgid, $plural, $this->reference($file, $line), 'Attribute '.$this->shortName($class).($path === '' ? '' : ' › '.$path), $comment);
             }
         }
 
         $cache->save();
+        $entries = $this->entries($strings, $diagnostics);
         sort($diagnostics, SORT_NATURAL);
 
-        return new AttributeExtraction($this->entries($strings, $context), $diagnostics, $examined, $parsed);
+        return new AttributeExtraction($entries, $diagnostics, $examined, $parsed);
     }
 
     /**
-     * @param  array<string, array<string, array{msgid: string, comments: list<string>, references: list<string>}>>  $strings
+     * Remembers one occurrence of a string. Its key is the one of the catalogue: the context and the message id.
+     *
+     * @param  array<string, array<string, Occurrences>>  $strings
+     */
+    private function add(array &$strings, string $domain, ?string $context, string $msgid, ?string $plural, string $reference, string $provenance, ?string $translatorComment): void
+    {
+        $key = $context === null ? $msgid : $context."\x04".$msgid;
+        $strings[$domain][$key] ??= ['msgid' => $msgid, 'context' => $context, 'occurrences' => []];
+        $strings[$domain][$key]['occurrences'][] = [$reference, $plural, $provenance, $translatorComment];
+    }
+
+    /**
+     * One entry per string. The first occurrence, in the order of their references, decides the plural form: another
+     * occurrence that gives a different one (or none, or one where the first has none) is left out and reported.
+     * Translator comments come before the provenance ones, each group sorted.
+     *
+     * @param  array<string, array<string, Occurrences>>  $strings
+     * @param  list<string>  $diagnostics  Receives the conflicts
      * @return array<string, list<CatalogEntry>>
      */
-    private function entries(array $strings, ?string $context): array
+    private function entries(array $strings, array &$diagnostics): array
     {
         ksort($strings);
         $entries = [];
@@ -107,15 +133,51 @@ final class AttributeSource
             ksort($messages);
 
             foreach ($messages as $message) {
-                $comments = array_values(array_unique($message['comments']));
-                $references = array_values(array_unique($message['references']));
-                sort($comments);
-                sort($references, SORT_NATURAL);
-                $entries[$domain][] = new CatalogEntry($message['msgid'], $context, null, $comments, $references);
+                $occurrences = $message['occurrences'];
+                usort($occurrences, static fn (array $left, array $right): int => strnatcmp($left[0], $right[0]));
+                [$firstReference, $plural] = $occurrences[0];
+                $translators = [];
+                $provenance = [];
+                $references = [];
+
+                foreach ($occurrences as [$reference, $other, $comment, $translatorComment]) {
+                    if ($other !== $plural) {
+                        $diagnostics[] = $reference.': '.$this->conflict($message['msgid'], $message['context'], $other, $plural, $firstReference);
+
+                        continue;
+                    }
+
+                    $provenance[] = $comment;
+                    $references[] = $reference;
+
+                    if ($translatorComment !== null) {
+                        $translators[] = $translatorComment;
+                    }
+                }
+
+                $translators = array_values(array_unique($translators));
+                $provenance = array_values(array_unique($provenance));
+                sort($translators);
+                sort($provenance);
+                $entries[$domain][] = new CatalogEntry($message['msgid'], $message['context'], $plural, [...$translators, ...$provenance], array_values(array_unique($references)));
             }
         }
 
         return $entries;
+    }
+
+    private function conflict(string $msgid, ?string $context, ?string $plural, ?string $kept, string $firstReference): string
+    {
+        $form = static fn (?string $value): string => $value === null ? 'with no plural form' : sprintf('with the plural form "%s"', $value);
+
+        return sprintf(
+            'Conflict: "%s"%s is written %s here but %s at %s: the first one was kept and this one left out.',
+            $msgid,
+            $context === null ? '' : sprintf(' (context "%s")', $context),
+            $form($plural),
+            $form($kept),
+            $firstReference,
+        );
     }
 
     /**
@@ -156,6 +218,20 @@ final class AttributeSource
     private function needles(array $fields): array
     {
         return array_values(array_unique(array_map($this->shortName(...), array_keys($fields))));
+    }
+
+    /**
+     * The cheap test that decides whether a file is parsed. It must never refuse a file that
+     * holds a string, so it looks for what such a file cannot do without: an attribute (`#[`),
+     * and either the short name of a declared class or the word Translatable or TranslatablePlural.
+     * Those words are in every spelling of the classes, an alias included, since an alias is declared by naming
+     * them (`use ...\Translatable as T`); PHP compares class names without regard to case.
+     *
+     * @param  list<string>  $needles
+     */
+    private function canHoldTranslatableAttribute(string $contents, array $needles): bool
+    {
+        return str_contains($contents, '#[') && ($this->mentionsAny($contents, $needles) || preg_match('/\btranslatable(?:plural)?\b/i', $contents) === 1);
     }
 
     /**

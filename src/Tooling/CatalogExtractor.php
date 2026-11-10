@@ -71,7 +71,7 @@ final readonly class CatalogExtractor
             }, $merge));
         }
 
-        $diagnostics = TranslatableRegistry::all() === [] ? [self::NOTHING_DECLARED, ...$extraction->diagnostics] : $extraction->diagnostics;
+        $diagnostics = TranslatableRegistry::all() === [] && $extraction->entries === [] ? [self::NOTHING_DECLARED, ...$extraction->diagnostics] : $extraction->diagnostics;
 
         return new RunReport(
             [new FileResult($output, $this->sink->put($output, $this->writer->write($catalog), $dryRun))],
