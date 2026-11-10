@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 function _n_noop(string $singular, string $plural, ?string $domain = null): array
 {
-    $GLOBALS['i18n_wordpress']['noop_calls']++;
+    $GLOBALS['i18n_wordpress']['noop_calls'] = ($GLOBALS['i18n_wordpress']['noop_calls'] ?? 0) + 1;
 
     return [
         0 => $singular,
@@ -25,7 +25,7 @@ function _n_noop(string $singular, string $plural, ?string $domain = null): arra
 
 function _nx_noop(string $singular, string $plural, string $context, ?string $domain = null): array
 {
-    $GLOBALS['i18n_wordpress']['noop_calls']++;
+    $GLOBALS['i18n_wordpress']['noop_calls'] = ($GLOBALS['i18n_wordpress']['noop_calls'] ?? 0) + 1;
 
     return [
         0 => $singular,
