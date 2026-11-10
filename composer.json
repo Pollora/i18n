@@ -27,11 +27,12 @@
     "require-dev": {
         "nikic/php-parser": "^5.0",
         "pestphp/pest": "^3.8.2",
-        "pollora/harness": "^0.1.23"
+        "pollora/harness": "^0.1.23",
+        "symfony/console": "^7.4 || ^8.0"
     },
     "suggest": {
         "nikic/php-parser": "^5.0, needed by AttributeSource to find the translatable attributes in PHP files (Tooling only, never loaded by a web request)",
-        "symfony/console": "Runs the extraction commands (Tooling only, never loaded by a web request)",
+        "symfony/console": "^6.4 || ^7.4 || ^8.0, runs bin/pollora-i18n: extract, update and compile (Tooling only, never loaded by a web request)",
         "illuminate/view": "Compiles Blade views to extract their strings (Tooling only)"
     },
     "autoload": {
@@ -44,6 +45,9 @@
             "Pollora\\I18n\\Tests\\": "tests/"
         }
     },
+    "bin": [
+        "bin/pollora-i18n"
+    ],
     "scripts": {
         "test": "pest",
         "test:coverage": "pest --coverage",

@@ -1,4 +1,8 @@
 {
     "version": 1,
-    "surface": []
+    "surface": {
+        "command:pollora:i18n:compile": "command",
+        "command:pollora:i18n:extract": "command",
+        "command:pollora:i18n:update": "command"
+    }
 }
