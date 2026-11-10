@@ -54,6 +54,29 @@ final class Book {}
 
 A parameter typed `string` refuses the object (a `TypeError`): use `Translatable` where the parameter is an `array`, `mixed` or `string|Stringable`.
 
+`new T('...', comment: '...')` adds a note for the translators (`#.` in the template). It is ignored when the text is resolved. A context is `null` for none: an empty string is refused, with an `InvalidTranslatableException`.
+
+### Plural texts
+
+A text that depends on a number is declared with both forms, and translated later, when the count is known:
+
+```php
+use Pollora\I18n\Runtime\TranslatablePlural as P;
+
+#[AdminColumns(['books' => new P('One book', '%d books', context: 'library', comment: 'Shown in the column header')])]
+final class Author {}
+```
+
+`Translator::resolve()` replaces each `TranslatablePlural` by the structure of WordPress's `_n_noop()` (`_nx_noop()` with a context), never by a string, whatever the locale. The code that displays the text gives it the count:
+
+```php
+$noop = $columns['books'];
+
+printf(translate_nooped_plural($noop, $count), number_format_i18n($count));
+```
+
+The domain is the one of the `TranslatablePlural`, else the one given to `resolve()`. When WordPress is not loaded, `resolve()` builds the same array (same keys, same order) by hand. `sprintf` replacements stay in the code that displays the text: the translated string is the template (`%s`, `%1$d`), never the result. `TranslatablePlural` cast to a string gives its singular form as written; an empty singular, plural or context is refused with an `InvalidTranslatablePluralException`.
+
 ## The command line
 
 `vendor/bin/pollora-i18n` runs the whole chain without Laravel: extract the strings, update the translated files, compile them for WordPress. It needs `symfony/console` (`composer require --dev symfony/console`); the web request never loads it.

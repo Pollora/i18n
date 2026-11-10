@@ -23,17 +23,23 @@ final readonly class Translatable implements Stringable
     /**
      * @param  string  $text  The text in its source language, never empty
      * @param  string|null  $domain  The text domain, or null for the one of the code that resolves it
-     * @param  string|null  $context  The disambiguating context (the `msgctxt` of the catalogue), or null for none
+     * @param  string|null  $context  The disambiguating context (the `msgctxt` of the catalogue), or null for none, never empty
+     * @param  string|null  $comment  A note for the translators (`#.` in the template), ignored when the text is resolved
      *
-     * @throws InvalidTranslatableException When the text is empty
+     * @throws InvalidTranslatableException When the text or the context is empty
      */
     public function __construct(
         public string $text,
         public ?string $domain = null,
         public ?string $context = null,
+        public ?string $comment = null,
     ) {
         if ($text === '') {
             throw InvalidTranslatableException::emptyText();
+        }
+
+        if ($context === '') {
+            throw InvalidTranslatableException::emptyContext();
         }
     }
 

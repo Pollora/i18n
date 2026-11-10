@@ -42,6 +42,12 @@ arch('Translatable is final, readonly and Stringable')
     ->toBeReadonly()
     ->toImplement(Stringable::class);
 
+arch('TranslatablePlural is final, readonly and Stringable')
+    ->expect('Pollora\I18n\Runtime\TranslatablePlural')
+    ->toBeFinal()
+    ->toBeReadonly()
+    ->toImplement(Stringable::class);
+
 arch('the tooling value objects are final and readonly')
     ->expect([
         'Pollora\I18n\Tooling\CatalogEntry',
@@ -59,6 +65,7 @@ arch('the tooling classes are final')
 arch('the exceptions are final and extend RuntimeException')
     ->expect([
         'Pollora\I18n\Runtime\InvalidTranslatableException',
+        'Pollora\I18n\Runtime\InvalidTranslatablePluralException',
         'Pollora\I18n\Runtime\TranslatableTooDeepException',
         'Pollora\I18n\Tooling\InvalidCatalogEntryException',
         'Pollora\I18n\Tooling\InvalidCatalogException',
