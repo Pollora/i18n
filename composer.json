@@ -25,11 +25,12 @@
         "php": "^8.3"
     },
     "require-dev": {
+        "nikic/php-parser": "^5.0",
         "pestphp/pest": "^3.8.2",
         "pollora/harness": "^0.1.23"
     },
     "suggest": {
-        "nikic/php-parser": "Reads PHP source files to extract their strings (Tooling only, never loaded by a web request)",
+        "nikic/php-parser": "^5.0, needed by AttributeSource to find the translatable attributes in PHP files (Tooling only, never loaded by a web request)",
         "symfony/console": "Runs the extraction commands (Tooling only, never loaded by a web request)",
         "illuminate/view": "Compiles Blade views to extract their strings (Tooling only)"
     },

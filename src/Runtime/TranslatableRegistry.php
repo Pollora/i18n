@@ -36,6 +36,14 @@ final class TranslatableRegistry
     }
 
     /**
+     * @return array<class-string, list<string>> Every declaration, for the tooling that reads attributes
+     */
+    public static function all(): array
+    {
+        return self::$fields;
+    }
+
+    /**
      * Forgets every declaration (tests, long-running workers).
      */
     public static function flush(): void
