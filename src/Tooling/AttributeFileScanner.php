@@ -14,6 +14,7 @@ use PhpParser\ParserFactory;
  * Parses one PHP file and returns the literal strings of its translatable attributes.
  *
  * @phpstan-import-type Record from AttributeCache
+ * @phpstan-import-type Marked from AttributeCache
  * @phpstan-import-type Diagnostic from AttributeCache
  */
 final class AttributeFileScanner
@@ -22,7 +23,7 @@ final class AttributeFileScanner
 
     /**
      * @param  array<class-string, list<string>>  $fields
-     * @return array{records: list<Record>, diagnostics: list<Diagnostic>}
+     * @return array{records: list<Record>, marked: list<Marked>, diagnostics: list<Diagnostic>}
      */
     public function scan(string $code, array $fields): array
     {
@@ -33,9 +34,9 @@ final class AttributeFileScanner
             $this->parser ??= (new ParserFactory)->createForNewestSupportedVersion();
             $traverser->traverse($this->parser->parse($code) ?? []);
         } catch (Error $error) {
-            return ['records' => [], 'diagnostics' => [[max($error->getStartLine(), 1), 'The file could not be parsed: '.$error->getRawMessage()]]];
+            return ['records' => [], 'marked' => [], 'diagnostics' => [[max($error->getStartLine(), 1), 'The file could not be parsed: '.$error->getRawMessage()]]];
         }
 
-        return ['records' => $visitor->records, 'diagnostics' => $visitor->diagnostics];
+        return ['records' => $visitor->records, 'marked' => $visitor->marked, 'diagnostics' => $visitor->diagnostics];
     }
 }

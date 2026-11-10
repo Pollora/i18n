@@ -15,8 +15,10 @@ use SplFileInfo;
 /**
  * Finds the strings of translatable attributes in PHP files.
  *
- * Which attributes, and which of their fields, comes from the TranslatableRegistry. A file is
- * read, then parsed only when it can hold such an attribute, one file at a time. With a cache
+ * Which attributes, and which of their fields, comes from the TranslatableRegistry. Besides,
+ * every `new Translatable('text')` written in the arguments of any attribute is a string,
+ * whatever the attribute. A file is read, then parsed only when it can hold one of these, one
+ * file at a time. With a cache
  * file, a file that did not change is not parsed again.
  *
  * @phpstan-import-type Record from AttributeCache
@@ -51,7 +53,7 @@ final class AttributeSource
         $examined = 0;
         $parsed = 0;
 
-        foreach ($needles === [] ? [] : $this->files($paths) as $file) {
+        foreach ($this->files($paths) as $file) {
             $contents = @file_get_contents($file);
 
             if ($contents === false) {
@@ -60,7 +62,7 @@ final class AttributeSource
                 continue;
             }
 
-            if (! str_contains($contents, '#[') || ! $this->mentionsAny($contents, $needles)) {
+            if (! $this->canHoldTranslatableAttribute($contents, $needles)) {
                 continue;
             }
 
@@ -82,8 +84,17 @@ final class AttributeSource
             foreach ($entry['records'] as [$class, $field, $msgid, $domain, $line]) {
                 $key = $context === null ? $msgid : $context."\x04".$msgid;
                 $domain ??= $defaultDomain;
-                $strings[$domain][$key] ??= ['msgid' => $msgid, 'comments' => [], 'references' => []];
+                $strings[$domain][$key] ??= ['msgid' => $msgid, 'context' => $context, 'comments' => [], 'references' => []];
                 $strings[$domain][$key]['comments'][] = 'Attribute '.$this->shortName($class).'::'.$field;
+                $strings[$domain][$key]['references'][] = $this->reference($file, $line);
+            }
+
+            foreach ($entry['marked'] as [$class, $path, $msgid, $domain, $own, $line]) {
+                $ownContext = $own ?? $context;
+                $key = $ownContext === null ? $msgid : $ownContext."\x04".$msgid;
+                $domain ??= $defaultDomain;
+                $strings[$domain][$key] ??= ['msgid' => $msgid, 'context' => $ownContext, 'comments' => [], 'references' => []];
+                $strings[$domain][$key]['comments'][] = 'Attribute '.$this->shortName($class).($path === '' ? '' : ' › '.$path);
                 $strings[$domain][$key]['references'][] = $this->reference($file, $line);
             }
         }
@@ -91,14 +102,14 @@ final class AttributeSource
         $cache->save();
         sort($diagnostics, SORT_NATURAL);
 
-        return new AttributeExtraction($this->entries($strings, $context), $diagnostics, $examined, $parsed);
+        return new AttributeExtraction($this->entries($strings), $diagnostics, $examined, $parsed);
     }
 
     /**
-     * @param  array<string, array<string, array{msgid: string, comments: list<string>, references: list<string>}>>  $strings
+     * @param  array<string, array<string, array{msgid: string, context: string|null, comments: list<string>, references: list<string>}>>  $strings
      * @return array<string, list<CatalogEntry>>
      */
-    private function entries(array $strings, ?string $context): array
+    private function entries(array $strings): array
     {
         ksort($strings);
         $entries = [];
@@ -111,7 +122,7 @@ final class AttributeSource
                 $references = array_values(array_unique($message['references']));
                 sort($comments);
                 sort($references, SORT_NATURAL);
-                $entries[$domain][] = new CatalogEntry($message['msgid'], $context, null, $comments, $references);
+                $entries[$domain][] = new CatalogEntry($message['msgid'], $message['context'], null, $comments, $references);
             }
         }
 
@@ -156,6 +167,20 @@ final class AttributeSource
     private function needles(array $fields): array
     {
         return array_values(array_unique(array_map($this->shortName(...), array_keys($fields))));
+    }
+
+    /**
+     * The cheap test that decides whether a file is parsed. It must never refuse a file that
+     * holds a string, so it looks for what such a file cannot do without: an attribute (`#[`),
+     * and either the short name of a declared class or the word Translatable. That word is in
+     * every spelling of the class, an alias included, since an alias is declared by naming it
+     * (`use ...\Translatable as T`); PHP compares class names without regard to case.
+     *
+     * @param  list<string>  $needles
+     */
+    private function canHoldTranslatableAttribute(string $contents, array $needles): bool
+    {
+        return str_contains($contents, '#[') && ($this->mentionsAny($contents, $needles) || preg_match('/\btranslatable\b/i', $contents) === 1);
     }
 
     /**
