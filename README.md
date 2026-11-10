@@ -81,6 +81,8 @@ The commands are also named `pollora:i18n:extract`, `pollora:i18n:update` and `p
 
 Exit codes: `0` done, `1` a file could not be read, parsed or written, `2` an option is missing or invalid (nothing was done), `3` `extract --strict` found a string it could not extract (the template is written all the same). Warnings (a non-literal argument, no attribute declared) go to the error output as `warning: file:line: message`.
 
+`extract` also reads `new Translatable('Text')` (`Pollora\I18n\Runtime\Translatable`, aliased or not) written anywhere in the arguments of **any** attribute, in nested arrays and named arguments included, with no declaration. The text domain is its second argument, else the attribute's literal `textDomain`, else `--domain`; the third argument is the message context. A text that is not a literal string, or is empty, is reported with its file and line. A `new Translatable(...)` outside an attribute is not extracted.
+
 The `.pot` has no date and sorted messages, and its references are relative to the current folder, so the same sources give the same file on every machine.
 
 ## License

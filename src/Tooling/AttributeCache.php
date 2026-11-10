@@ -10,16 +10,18 @@ use Throwable;
  * What AttributeSource remembers of each file, in a PHP file that returns an array.
  *
  * An entry holds only what the file said, so it stays right when the default domain or
- * the context changes. It is valid while the file keeps its contents and the declared
- * fields stay the same; otherwise the file is read again.
+ * the context changes. It is valid while the file keeps its contents, the declared
+ * fields stay the same and the format is the one this version writes; otherwise the file
+ * is read again.
  *
  * @phpstan-type Record array{0: string, 1: string, 2: string, 3: string|null, 4: int}
+ * @phpstan-type Marked array{0: string, 1: string, 2: string, 3: string|null, 4: string|null, 5: int}
  * @phpstan-type Diagnostic array{0: int, 1: string}
- * @phpstan-type Entry array{hash: string, records: list<Record>, diagnostics: list<Diagnostic>}
+ * @phpstan-type Entry array{hash: string, records: list<Record>, marked: list<Marked>, diagnostics: list<Diagnostic>}
  */
 final class AttributeCache
 {
-    private const int VERSION = 1;
+    private const int VERSION = 2;
 
     /** @var array<string, Entry> */
     private array $entries = [];
@@ -53,7 +55,7 @@ final class AttributeCache
     {
         $entry = $this->entries[$file] ?? null;
 
-        return is_array($entry) && ($entry['hash'] ?? null) === $hash && is_array($entry['records'] ?? null) && is_array($entry['diagnostics'] ?? null) ? $entry : null;
+        return is_array($entry) && ($entry['hash'] ?? null) === $hash && is_array($entry['records'] ?? null) && is_array($entry['marked'] ?? null) && is_array($entry['diagnostics'] ?? null) ? $entry : null;
     }
 
     /**

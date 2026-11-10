@@ -142,6 +142,15 @@ it('extracts nothing without declarations and still writes the header', function
         ->and((string) file_get_contents($project.'/languages/books.pot'))->toContain('msgid ""');
 });
 
+it('extracts a Translatable without any declaration, and does not claim that nothing is declared', function (): void {
+    $project = cliProject(['src/Columns.php' => "<?php\nuse Pollora\\I18n\\Runtime\\Translatable as T;\n#[Columns(['a' => new T('Written by', 'books')])]\nclass Columns {}\n"]);
+
+    $report = cliExtract($project, ['declarations' => []]);
+
+    expect($report->diagnostics)->toBe([])
+        ->and((string) file_get_contents($project.'/languages/books.pot'))->toContain('msgid "Written by"')->toContain('#. Attribute Columns › a');
+});
+
 it('fails on an installed.json that is not there when it was asked for', function (): void {
     cliExtract(cliProject(), ['installed' => '/nowhere/installed.json']);
 })->throws(InvalidDeclarationException::class);
