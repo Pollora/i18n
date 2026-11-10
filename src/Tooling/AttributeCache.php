@@ -14,14 +14,17 @@ use Throwable;
  * fields stay the same and the format is the one this version writes; otherwise the file
  * is read again.
  *
+ * A marked text is its class, the keys leading to it, its text (the singular form), its plural form, domain, context,
+ * translator comment and line.
+ *
  * @phpstan-type Record array{0: string, 1: string, 2: string, 3: string|null, 4: int}
- * @phpstan-type Marked array{0: string, 1: string, 2: string, 3: string|null, 4: string|null, 5: int}
+ * @phpstan-type Marked array{0: string, 1: string, 2: string, 3: string|null, 4: string|null, 5: string|null, 6: string|null, 7: int}
  * @phpstan-type Diagnostic array{0: int, 1: string}
  * @phpstan-type Entry array{hash: string, records: list<Record>, marked: list<Marked>, diagnostics: list<Diagnostic>}
  */
 final class AttributeCache
 {
-    private const int VERSION = 2;
+    private const int VERSION = 3;
 
     /** @var array<string, Entry> */
     private array $entries = [];

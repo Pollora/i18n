@@ -106,6 +106,12 @@ Exit codes: `0` done, `1` a file could not be read, parsed or written, `2` an op
 
 `extract` also reads `new Translatable('Text')` (`Pollora\I18n\Runtime\Translatable`, aliased or not) written anywhere in the arguments of **any** attribute, in nested arrays and named arguments included, with no declaration. The text domain is its second argument, else the attribute's literal `textDomain`, else `--domain`; the third argument is the message context. A text that is not a literal string, or is empty, is reported with its file and line. A `new Translatable(...)` outside an attribute is not extracted.
 
+`new TranslatablePlural('One book', '%d books')` is read the same way, whatever its spelling, and gives an entry with a `msgid_plural` (the singular form is the `msgid`): its domain is the third argument and its context the fourth. The plural form is deferred, as at run time: the template holds both forms and the count is given later, to `translate_nooped_plural()`. Languages with several plural forms get them in the `.po` files (`update` writes as many `msgstr[n]` as the locale has) and in the compiled files.
+
+The `comment:` of a `Translatable` (fourth argument) or of a `TranslatablePlural` (fifth) becomes an extracted comment (`#.`) of the entry, before the line that says where the string comes from (`Attribute Counts › books`). It must be a literal string; an empty one is ignored, and one that is not a literal is reported and left out, the string itself being extracted all the same.
+
+What `extract` reports, with `file:line`, and leaves out: a text, singular or plural form that is empty or not a literal; a domain or context that is not a literal; an **empty context** (`context: ''`), which `Translatable` and `TranslatablePlural` also refuse at run time, so what is extracted is what gets asked of gettext; a **conflict**, when the same string (same context and message id in the same domain) is written with two different plural forms, or once as a text and once as a plural. A string written several times with the same plural form is one entry with every reference and comment. On a conflict, the first occurrence (in the order of the references) is kept and the other ones are left out, so the template never depends on the order the files were read in. `--strict` makes any of these an exit code `3`.
+
 The `.pot` has no date and sorted messages, and its references are relative to the current folder, so the same sources give the same file on every machine.
 
 ## License
