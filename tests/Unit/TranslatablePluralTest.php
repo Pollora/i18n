@@ -247,27 +247,30 @@ describe('Translator::resolve() of a TranslatablePlural against the functions of
 });
 
 /*
- * Last of the in-process tests: loading _n_noop() and _nx_noop() defines them
- * for the rest of the process, and the tests above rely on their absence.
+ * The only test that defines _n_noop() and _nx_noop() in this process: once
+ * defined they stay, so it runs the case where they are absent and the case
+ * where they exist one after the other, and no other test loads them. Whatever
+ * the order of the tests, the hand-built branch and the WordPress branch are
+ * both run here, and the other tests see the same structure either way.
  */
-describe('Translator::resolve() of a TranslatablePlural when WordPress provides _n_noop() and _nx_noop()', function (): void {
-    beforeEach(function (): void {
-        require_once __DIR__.'/../Fixtures/wordpress-functions.php';
-        require_once __DIR__.'/../Fixtures/wordpress-noop-functions.php';
+it('builds the structure by hand without _n_noop() and _nx_noop(), and calls them once WordPress provides them', function (): void {
+    require_once __DIR__.'/../Fixtures/wordpress-functions.php';
 
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0, 'noop_calls' => 0];
-    });
+    $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0, 'noop_calls' => 0];
+    $arguments = [
+        'plain' => new TranslatablePlural('One book', '%d books'),
+        'context' => new TranslatablePlural('One film', '%d films', 'own', 'cinema'),
+    ];
+    $expected = [
+        'plain' => pluralNoop('One book', '%d books', 'pollora'),
+        'context' => pluralNoopWithContext('One film', '%d films', 'cinema', 'own'),
+    ];
 
-    it('calls them and gives the same structure as by hand', function (): void {
-        $resolved = Translator::resolve([
-            'plain' => new TranslatablePlural('One book', '%d books'),
-            'context' => new TranslatablePlural('One film', '%d films', 'own', 'cinema'),
-        ], 'pollora');
+    expect(function_exists('_n_noop') || function_exists('_nx_noop'))->toBeFalse()
+        ->and(Translator::resolve($arguments, 'pollora'))->toBe($expected);
 
-        expect($resolved)->toBe([
-            'plain' => pluralNoop('One book', '%d books', 'pollora'),
-            'context' => pluralNoopWithContext('One film', '%d films', 'cinema', 'own'),
-        ])
-            ->and($GLOBALS['i18n_wordpress']['noop_calls'])->toBe(2);
-    });
+    require_once __DIR__.'/../Fixtures/wordpress-noop-functions.php';
+
+    expect(Translator::resolve($arguments, 'pollora'))->toBe($expected)
+        ->and($GLOBALS['i18n_wordpress']['noop_calls'])->toBe(2);
 });
