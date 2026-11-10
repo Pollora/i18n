@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\I18n\Runtime;
 
+use Stringable;
+
 /**
  * Translates a string that came from a constant, such as an attribute argument.
  *
@@ -50,12 +52,17 @@ final class Translator
     /**
      * Replaces every Translatable in a value by its translation, at any depth of an array.
      *
-     * A value that is neither an array nor a Translatable comes back at once.
-     * An array with no Translatable comes back as it is, without a copy; one
-     * with some is copied once, on the first replacement. Keys are kept and
-     * objects other than Translatable are not looked into. No reflection.
+     * A TranslatablePlural becomes the structure of WordPress's _n_noop() or,
+     * with a context, _nx_noop(): the count is not known yet, and the code that
+     * displays the text gives it to translate_nooped_plural(). It never becomes
+     * a string, whatever the locale.
      *
-     * @param  mixed  $value  A Translatable, or an array that may hold some
+     * A value that is neither an array nor one of these comes back at once.
+     * An array with none comes back as it is, without a copy; one with some is
+     * copied once, on the first replacement. Keys are kept and objects other
+     * than these are not looked into. No reflection.
+     *
+     * @param  mixed  $value  A Translatable, a TranslatablePlural, or an array that may hold some
      * @param  string  $defaultDomain  The text domain of a Translatable that names none
      *
      * @throws TranslatableTooDeepException When arrays are nested more than MAX_DEPTH levels
@@ -66,8 +73,12 @@ final class Translator
             return self::resolveArray($value, $defaultDomain, self::mode(), 1);
         }
 
-        return $value instanceof Translatable
-            ? self::translateText($value, $defaultDomain, self::mode())
+        if ($value instanceof Translatable) {
+            return self::translateText($value, $defaultDomain, self::mode());
+        }
+
+        return $value instanceof TranslatablePlural
+            ? self::nooped($value, $defaultDomain)
             : $value;
     }
 
@@ -101,8 +112,13 @@ final class Translator
                 if ($inner !== $item) {
                     $resolved[$key] = $inner;
                 }
-            } elseif ($item instanceof Translatable) {
-                $resolved[$key] = self::translateText($item, $defaultDomain, $mode);
+            } elseif ($item instanceof Stringable) {
+                // One check for every scalar; the two marked types are Stringable.
+                if ($item instanceof Translatable) {
+                    $resolved[$key] = self::translateText($item, $defaultDomain, $mode);
+                } elseif ($item instanceof TranslatablePlural) {
+                    $resolved[$key] = self::nooped($item, $defaultDomain);
+                }
             }
         }
 
@@ -120,6 +136,41 @@ final class Translator
         return $translatable->context === null
             ? __($translatable->text, $domain)
             : _x($translatable->text, $translatable->context, $domain);
+    }
+
+    /**
+     * The structure of _n_noop() or _nx_noop(), key for key: built by WordPress when it is there, by hand when it is not.
+     *
+     * @return array<int|string, string|null>
+     */
+    private static function nooped(TranslatablePlural $plural, string $defaultDomain): array
+    {
+        $domain = $plural->domain ?? $defaultDomain;
+
+        if ($plural->context === null) {
+            return function_exists('_n_noop')
+                ? _n_noop($plural->singular, $plural->plural, $domain)
+                : [
+                    0 => $plural->singular,
+                    1 => $plural->plural,
+                    'singular' => $plural->singular,
+                    'plural' => $plural->plural,
+                    'context' => null,
+                    'domain' => $domain,
+                ];
+        }
+
+        return function_exists('_nx_noop')
+            ? _nx_noop($plural->singular, $plural->plural, $plural->context, $domain)
+            : [
+                0 => $plural->singular,
+                1 => $plural->plural,
+                2 => $plural->context,
+                'singular' => $plural->singular,
+                'plural' => $plural->plural,
+                'context' => $plural->context,
+                'domain' => $domain,
+            ];
     }
 
     /**

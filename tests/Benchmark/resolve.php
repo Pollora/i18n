@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 /*
  * Cost of Translator::resolve() against a naive array_walk_recursive.
+ * Case (d) is skipped when TranslatablePlural does not exist, so the same file measures an older tree.
  *
  * Usage: XDEBUG_MODE=off php -n -d zend_extension=opcache -d opcache.enable_cli=1 tests/Benchmark/resolve.php [iterations] [series]
  * (a debugger or profiler extension multiplies every figure by two or three).
@@ -11,6 +12,7 @@ declare(strict_types=1);
  */
 
 use Pollora\I18n\Runtime\Translatable;
+use Pollora\I18n\Runtime\TranslatablePlural;
 use Pollora\I18n\Runtime\Translator;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -38,6 +40,21 @@ function benchmarkArguments(bool $withTranslatable): array
 
     $arguments['label'] = $text('Label');
     $arguments['hint'] = $text('Hint');
+
+    return $arguments;
+}
+
+/**
+ * The arguments of (a), with three plural texts in place of three plain ones.
+ *
+ * @return array<string, mixed>
+ */
+function benchmarkPluralArguments(): array
+{
+    $arguments = benchmarkArguments(false);
+    $arguments['column_0']['title'] = new TranslatablePlural('One book', '%d books');
+    $arguments['column_1']['count'] = new TranslatablePlural('One film', '%d films', 'own', 'cinema');
+    $arguments['count'] = new TranslatablePlural('One author', '%d authors');
 
     return $arguments;
 }
@@ -88,12 +105,16 @@ $cases = [
     '(c) scalar' => 'Book',
 ];
 
+if (class_exists(TranslatablePlural::class)) {
+    $cases['(d) 20 entries, 3 TranslatablePlural'] = benchmarkPluralArguments();
+}
+
 printf("%d iterations, median of %d series, PHP %s, ns per call\n", $iterations, $series, PHP_VERSION);
 
 foreach ($cases as $name => $value) {
     $empty = benchmarkMedian(static fn (): mixed => $value, $iterations, $series);
     $resolve = benchmarkMedian(static fn (): mixed => Translator::resolve($value, 'pollora'), $iterations, $series);
-    $naive = benchmarkMedian(static fn (): mixed => benchmarkNaive($value, 'pollora'), $iterations, $series);
+    $naive = str_starts_with($name, '(d)') ? null : benchmarkMedian(static fn (): mixed => benchmarkNaive($value, 'pollora'), $iterations, $series);
 
-    printf("%-34s resolve %7.0f   naive %7.0f   (empty closure %4.0f)\n", $name, $resolve, $naive, $empty);
+    printf("%-40s resolve %7.0f   naive %7s   (empty closure %4.0f)\n", $name, $resolve, $naive === null ? 'n/a' : sprintf('%.0f', $naive), $empty);
 }

@@ -5,11 +5,12 @@ declare(strict_types=1);
 /**
  * Runs tests/Fixtures/request.php, one simulated web request, in a process of its own.
  *
+ * @param  string  ...$arguments  Further arguments of the script, such as the path of WordPress
  * @return array{result: string, tooling: list<string>}
  */
-function simulateRequest(string $mode): array
+function simulateRequest(string $mode, string ...$arguments): array
 {
-    $process = proc_open([PHP_BINARY, '-d', 'display_errors=stderr', __DIR__.'/Fixtures/request.php', $mode], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+    $process = proc_open([PHP_BINARY, '-d', 'display_errors=stderr', __DIR__.'/Fixtures/request.php', $mode, ...$arguments], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 
     if (! is_resource($process)) {
         throw new RuntimeException('The simulated request could not start.');
