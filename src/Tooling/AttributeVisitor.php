@@ -17,8 +17,8 @@ use Throwable;
 
 /**
  * Collects the literal strings of the translatable fields of the attributes it meets, and the
- * literal text of every `new Translatable(...)` written in the arguments of any attribute.
- * Names must already be resolved (NameResolver runs first).
+ * literal text of every `new Translatable(...)` and `new TranslatablePlural(...)` written in the
+ * arguments of any attribute. Names must already be resolved (NameResolver runs first).
  *
  * @phpstan-import-type Record from AttributeCache
  * @phpstan-import-type Marked from AttributeCache
@@ -26,11 +26,17 @@ use Throwable;
  */
 final class AttributeVisitor extends NodeVisitorAbstract
 {
-    /** The class a Translatable is written for, lowercased as PHP compares class names */
-    private const string TRANSLATABLE = 'pollora\\i18n\\runtime\\translatable';
+    /** The classes a marked text is written with, lowercased as PHP compares class names, and their name in a message */
+    private const array MARKERS = [
+        'pollora\\i18n\\runtime\\translatable' => 'Translatable',
+        'pollora\\i18n\\runtime\\translatableplural' => 'TranslatablePlural',
+    ];
 
-    /** @var array<int, string> The positional parameters of Translatable's constructor */
-    private const array TRANSLATABLE_PARAMETERS = ['text', 'domain', 'context'];
+    /** @var array<string, array<int, string>> The positional parameters of the constructor of each marker */
+    private const array PARAMETERS = [
+        'Translatable' => ['text', 'domain', 'context', 'comment'],
+        'TranslatablePlural' => ['singular', 'plural', 'domain', 'context', 'comment'],
+    ];
 
     /** @var list<Record> */
     public array $records = [];
@@ -81,8 +87,8 @@ final class AttributeVisitor extends NodeVisitorAbstract
             $this->nextKeys[] = 0;
         } elseif ($node instanceof Node\ArrayItem) {
             $this->path[] = $this->segment($node);
-        } elseif ($this->isTranslatable($node)) {
-            $this->collectTranslatable($node);
+        } elseif ($node instanceof Expr\New_ && ($marker = $this->markerOf($node)) !== null) {
+            $this->collectMarked($node, $marker);
 
             return NodeVisitor::DONT_TRAVERSE_CHILDREN;
         }
@@ -184,15 +190,19 @@ final class AttributeVisitor extends NodeVisitorAbstract
         return $segment;
     }
 
-    private function collectTranslatable(Expr\New_ $new): void
+    /**
+     * @param  string  $marker  Translatable or TranslatablePlural
+     */
+    private function collectMarked(Expr\New_ $new, string $marker): void
     {
+        $parameters = self::PARAMETERS[$marker];
         $values = [];
 
         /** @var list<Node\Arg> $arguments */
         $arguments = $new->args;
 
         foreach ($arguments as $position => $argument) {
-            $name = $argument->name?->toString() ?? self::TRANSLATABLE_PARAMETERS[$position] ?? null;
+            $name = $argument->name?->toString() ?? $parameters[$position] ?? null;
 
             if ($name !== null) {
                 $values[$name] = $argument->value;
@@ -200,37 +210,66 @@ final class AttributeVisitor extends NodeVisitorAbstract
         }
 
         $class = $this->shortName((string) $this->attribute);
-        $textExpression = $values['text'] ?? null;
-        $text = $textExpression === null ? null : $this->fold($textExpression);
+        $forms = [];
 
-        if ($text === null) {
-            $this->skipped('text', $class, ($textExpression ?? $new)->getStartLine());
+        foreach (array_slice($parameters, 0, $marker === 'Translatable' ? 1 : 2) as $form) {
+            $expression = $values[$form] ?? null;
+            $text = $expression === null ? null : $this->fold($expression);
 
-            return;
-        }
+            if ($text === null) {
+                $this->skipped($form, $marker, $class, ($expression ?? $new)->getStartLine());
 
-        if ($text === '') {
-            $this->diagnostics[] = [$textExpression->getStartLine(), sprintf('A Translatable in #[%s] has an empty text: it was skipped.', $class)];
+                return;
+            }
 
-            return;
+            if ($text === '') {
+                $this->diagnostics[] = [$expression->getStartLine(), sprintf('A %s in #[%s] has an empty %s: it was skipped.', $marker, $class, $form)];
+
+                return;
+            }
+
+            $forms[] = [$text, $expression->getStartLine()];
         }
 
         $domain = $this->optional($values['domain'] ?? null);
         $context = $this->optional($values['context'] ?? null);
 
         if ($domain === false || $context === false) {
-            $this->skipped($domain === false ? 'domain' : 'context', $class, ($domain === false ? $values['domain'] : $values['context'])->getStartLine());
+            $this->skipped($domain === false ? 'domain' : 'context', $marker, $class, ($domain === false ? $values['domain'] : $values['context'])->getStartLine());
+
+            return;
+        }
+
+        if ($context === '') {
+            $this->diagnostics[] = [$values['context']->getStartLine(), sprintf('A %s in #[%s] has an empty context: it was skipped.', $marker, $class)];
 
             return;
         }
 
         if ($domain === null && $this->attributeDomainUnknown) {
-            $this->diagnostics[] = [$new->getStartLine(), sprintf('The text domain of #[%s] is not a literal string: a Translatable in it was skipped.', $class)];
+            $this->diagnostics[] = [$new->getStartLine(), sprintf('The text domain of #[%s] is not a literal string: a %s in it was skipped.', $class, $marker)];
 
             return;
         }
 
-        $this->marked[] = [(string) $this->attribute, implode('.', $this->path), $text, $domain ?? $this->attributeDomain, $context, $textExpression->getStartLine()];
+        $this->marked[] = [(string) $this->attribute, implode('.', $this->path), $forms[0][0], $forms[1][0] ?? null, $domain ?? $this->attributeDomain, $context, $this->comment($values['comment'] ?? null, $marker, $class), $forms[0][1]];
+    }
+
+    /**
+     * The note for the translators, which only a literal can give. The string it belongs to is
+     * extracted either way, so a comment that is not a literal is reported and left out.
+     */
+    private function comment(?Expr $expression, string $marker, string $class): ?string
+    {
+        $comment = $this->optional($expression);
+
+        if ($comment === false) {
+            $this->diagnostics[] = [(int) $expression?->getStartLine(), sprintf('The comment of a %s in #[%s] is not a literal string: it was left out.', $marker, $class)];
+
+            return null;
+        }
+
+        return $comment === '' ? null : $comment;
     }
 
     /**
@@ -245,9 +284,9 @@ final class AttributeVisitor extends NodeVisitorAbstract
         return $this->fold($expression) ?? false;
     }
 
-    private function skipped(string $argument, string $class, int $line): void
+    private function skipped(string $argument, string $marker, string $class, int $line): void
     {
-        $this->diagnostics[] = [$line, sprintf('The %s of a Translatable in #[%s] is not a literal string: it was skipped.', $argument, $class)];
+        $this->diagnostics[] = [$line, sprintf('The %s of a %s in #[%s] is not a literal string: it was skipped.', $argument, $marker, $class)];
     }
 
     /**
@@ -315,7 +354,7 @@ final class AttributeVisitor extends NodeVisitorAbstract
             : [$expression];
 
         foreach ($items as $item) {
-            if ($this->isTranslatable($item)) {
+            if ($this->markerOf($item) !== null) {
                 continue;
             }
 
@@ -330,14 +369,12 @@ final class AttributeVisitor extends NodeVisitorAbstract
     }
 
     /**
-     * Whether the expression is `new Translatable(...)`, whatever the way its class was named.
-     * What it holds is read where it is met, so a declared field leaves it alone.
-     *
-     * @phpstan-assert-if-true Expr\New_ $expression
+     * The marker the expression is, `new Translatable(...)` or `new TranslatablePlural(...)`, whatever the way its
+     * class was named; null for anything else. What it holds is read where it is met, so a declared field leaves it alone.
      */
-    private function isTranslatable(Node $expression): bool
+    private function markerOf(Node $expression): ?string
     {
-        return $expression instanceof Expr\New_ && $expression->class instanceof Node\Name && strtolower($expression->class->toString()) === self::TRANSLATABLE;
+        return $expression instanceof Expr\New_ && $expression->class instanceof Node\Name ? self::MARKERS[strtolower($expression->class->toString())] ?? null : null;
     }
 
     private function fold(Expr $expression): ?string
