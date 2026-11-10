@@ -37,11 +37,26 @@ arch('the runtime classes are final')
     ->toBeFinal();
 
 arch('the tooling value objects are final and readonly')
-    ->expect('Pollora\I18n\Tooling\CatalogEntry')
+    ->expect([
+        'Pollora\I18n\Tooling\CatalogEntry',
+        'Pollora\I18n\Tooling\CatalogMessage',
+        'Pollora\I18n\Tooling\Catalog',
+    ])
     ->toBeFinal()
     ->toBeReadonly();
 
+arch('the tooling classes are final')
+    ->expect('Pollora\I18n\Tooling')
+    ->classes()
+    ->toBeFinal();
+
 arch('the exceptions are final and extend RuntimeException')
-    ->expect('Pollora\I18n\Tooling\InvalidCatalogEntryException')
+    ->expect([
+        'Pollora\I18n\Tooling\InvalidCatalogEntryException',
+        'Pollora\I18n\Tooling\InvalidCatalogException',
+        'Pollora\I18n\Tooling\InvalidCatalogMessageException',
+        'Pollora\I18n\Tooling\PoParseException',
+        'Pollora\I18n\Tooling\PoFileException',
+    ])
     ->toBeFinal()
     ->toExtend(RuntimeException::class);
