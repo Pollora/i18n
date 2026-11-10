@@ -6,6 +6,7 @@ namespace Pollora\I18n\Tooling;
 
 use FilesystemIterator;
 use Generator;
+use PhpParser\ParserFactory;
 use Pollora\I18n\Runtime\TranslatableRegistry;
 use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
@@ -37,19 +38,25 @@ final class AttributeSource
     /**
      * @param  string|null  $cachePath  A file this source may create to skip unchanged files; never required
      * @param  string|null  $basePath  Directory that references are written relative to; absolute paths when null
+     * @param  string  $parserClass  The class whose presence tells that nikic/php-parser is installed; only a test changes it
      */
-    public function __construct(private readonly ?string $cachePath = null, private readonly ?string $basePath = null) {}
+    public function __construct(private readonly ?string $cachePath = null, private readonly ?string $basePath = null, private readonly string $parserClass = ParserFactory::class) {}
 
     /**
      * @param  list<string>  $paths  Directories (searched for .php files, except vendor, node_modules and .git) or files
      * @param  string  $defaultDomain  The text domain of an attribute that does not name one with textDomain
      * @param  string|null  $context  The msgctxt given to every entry, when the strings need one
      *
+     * @throws PhpParserMissingException When nikic/php-parser is not installed
      * @throws AttributeSourceException When a path does not exist
      * @throws FileWriteException When the cache cannot be written
      */
     public function extract(array $paths, string $defaultDomain, ?string $context = null): AttributeExtraction
     {
+        if (! class_exists($this->parserClass)) {
+            throw PhpParserMissingException::notInstalled();
+        }
+
         $fields = TranslatableRegistry::all();
         $cache = new AttributeCache($this->cachePath, $this->fieldsVersion($fields));
         $scanner = new AttributeFileScanner;

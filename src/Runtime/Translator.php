@@ -38,7 +38,7 @@ final class Translator
      */
     public static function translate(string $class, string $field, string $value, string $domain): string
     {
-        if ($value === '' || ! function_exists('__') || ! in_array($field, TranslatableRegistry::fieldsFor($class), true)) {
+        if ($value === '' || ! function_exists('__') || ! function_exists('_x') || ! in_array($field, TranslatableRegistry::fieldsFor($class), true)) {
             return $value;
         }
 
@@ -176,11 +176,13 @@ final class Translator
     /**
      * What resolve() does with a text: the WordPress functions are looked up once per call, not once per text.
      * Without WordPress (the case tests/Fixtures/request.php runs in a process of its own) the texts stay as written.
+     * WordPress is there only when both __() and _x() exist: Laravel declares a __() of its own, with another signature,
+     * and a text with a context calls _x().
      */
     private static function mode(): int
     {
         return match (true) {
-            ! function_exists('__') => self::NO_WORDPRESS,
+            ! function_exists('__') || ! function_exists('_x') => self::NO_WORDPRESS,
             function_exists('get_locale') && function_exists('is_textdomain_loaded') && get_locale() === self::SOURCE_LOCALE => self::SOURCE_ONLY,
             default => self::TRANSLATE,
         };

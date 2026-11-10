@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Translator` takes WordPress for absent when `__()` or `_x()` is missing, not only `__()`. Laravel declares a `__()` of its own, with another signature: outside WordPress, `translate()` passed it a text domain where it expects an array, and a `Translatable` with a context called an `_x()` that does not exist, a fatal error. Both now give the text back as written. The check is still made once per call of `resolve()`, not once per text.
+- `extract` and `AttributeSource` no longer stop with a fatal error when `nikic/php-parser`, which the package only suggests, is not installed: `AttributeSource::extract()` throws `PhpParserMissingException` (a `RuntimeException`) with the command to run (`composer require --dev nikic/php-parser`), before any `PhpParser` class is loaded, and the binary prints it and exits with 1.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added
