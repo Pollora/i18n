@@ -118,7 +118,7 @@ it('produces the same bytes whatever the order of the input', function (): void 
 /**
  * Runs a gettext tool and returns what it printed.
  */
-function gettextTool(string $command): string
+function runGettext(string $command): string
 {
     return (string) shell_exec($command.' 2>&1');
 }
@@ -134,7 +134,7 @@ it('matches the bytes of msgfmt --no-hash', function (): void {
     file_put_contents($directory.'/sample.po', $sample['po']);
 
     try {
-        $output = gettextTool('msgfmt --no-hash -o '.escapeshellarg($directory.'/reference.mo').' '.escapeshellarg($directory.'/sample.po'));
+        $output = runGettext('msgfmt --no-hash -o '.escapeshellarg($directory.'/reference.mo').' '.escapeshellarg($directory.'/sample.po'));
 
         expect($output)->toBe('')
             ->and((new MoCompiler)->compile($sample['headers'], $sample['messages']))->toBe(file_get_contents($directory.'/reference.mo'));
@@ -156,10 +156,10 @@ it('is read by msgunfmt like the file msgfmt writes, hash table included', funct
     file_put_contents($directory.'/mine.mo', (new MoCompiler)->compile($sample['headers'], $sample['messages']));
 
     try {
-        gettextTool('msgfmt -o '.escapeshellarg($directory.'/reference.mo').' '.escapeshellarg($directory.'/sample.po'));
+        runGettext('msgfmt -o '.escapeshellarg($directory.'/reference.mo').' '.escapeshellarg($directory.'/sample.po'));
 
-        $reference = gettextTool('msgunfmt '.escapeshellarg($directory.'/reference.mo'));
-        $mine = gettextTool('msgunfmt '.escapeshellarg($directory.'/mine.mo'));
+        $reference = runGettext('msgunfmt '.escapeshellarg($directory.'/reference.mo'));
+        $mine = runGettext('msgunfmt '.escapeshellarg($directory.'/mine.mo'));
 
         expect($mine)->toBe($reference)
             ->and($mine)->toContain('msgid "%d book"');
