@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-12
+
 ### Fixed
 
 - `Translator` takes WordPress for absent when `__()` or `_x()` is missing, not only `__()`. Laravel declares a `__()` of its own, with another signature: outside WordPress, `translate()` passed it a text domain where it expects an array, and a `Translatable` with a context called an `_x()` that does not exist, a fatal error. Both now give the text back as written. The check is still made once per call of `resolve()`, not once per text.
