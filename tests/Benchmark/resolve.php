@@ -97,7 +97,7 @@ function benchmarkMedian(callable $run, int $iterations, int $series): float
     return $timings[intdiv(count($timings), 2)];
 }
 
-$GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0];
+$GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0, 'record' => false];
 
 $cases = [
     '(a) 20 entries, no Translatable' => benchmarkArguments(false),

@@ -10,25 +10,15 @@ use Stringable;
  * Translates a string that came from a constant, such as an attribute argument.
  *
  * It makes one call to WordPress's __() and nothing else: no reflection, no
- * file read. It does nothing when WordPress is not loaded, when the field is
- * not declared translatable, or when the site runs in its source language
- * with no catalogue loaded for the domain.
+ * file read. It does nothing when WordPress is not loaded or when the field is
+ * not declared translatable. Otherwise it always calls __(): whether a
+ * catalogue is loaded, or the site runs in its source language, is for
+ * WordPress and its gettext filters to decide, not for this class.
  */
 final class Translator
 {
     /** The deepest array resolve() walks: more is a circular reference, not an argument list. */
     public const int MAX_DEPTH = 16;
-
-    private const string SOURCE_LOCALE = 'en_US';
-
-    /** WordPress is not loaded: a Translatable becomes its text. */
-    private const int NO_WORDPRESS = 0;
-
-    /** Translate every text. */
-    private const int TRANSLATE = 1;
-
-    /** Source locale: translate only the domains that have a catalogue loaded. */
-    private const int SOURCE_ONLY = 2;
 
     /**
      * @param  class-string  $class  The class that carries the string
@@ -39,10 +29,6 @@ final class Translator
     public static function translate(string $class, string $field, string $value, string $domain): string
     {
         if ($value === '' || ! function_exists('__') || ! function_exists('_x') || ! in_array($field, TranslatableRegistry::fieldsFor($class), true)) {
-            return $value;
-        }
-
-        if (self::needsNoCatalogue($domain)) {
             return $value;
         }
 
@@ -70,11 +56,11 @@ final class Translator
     public static function resolve(mixed $value, string $defaultDomain): mixed
     {
         if (is_array($value)) {
-            return self::resolveArray($value, $defaultDomain, self::mode(), 1);
+            return self::resolveArray($value, $defaultDomain, self::hasWordPress(), 1);
         }
 
         if ($value instanceof Translatable) {
-            return self::translateText($value, $defaultDomain, self::mode());
+            return self::translateText($value, $defaultDomain, self::hasWordPress());
         }
 
         return $value instanceof TranslatablePlural
@@ -83,21 +69,10 @@ final class Translator
     }
 
     /**
-     * Source locale and no catalogue for the domain: __() would return the string unchanged. Reads WordPress's memory only.
-     */
-    private static function needsNoCatalogue(string $domain): bool
-    {
-        return function_exists('get_locale')
-            && function_exists('is_textdomain_loaded')
-            && get_locale() === self::SOURCE_LOCALE
-            && ! is_textdomain_loaded($domain);
-    }
-
-    /**
      * @param  array<array-key, mixed>  $values
      * @return array<array-key, mixed>
      */
-    private static function resolveArray(array $values, string $defaultDomain, int $mode, int $depth): array
+    private static function resolveArray(array $values, string $defaultDomain, bool $hasWordPress, int $depth): array
     {
         if ($depth > self::MAX_DEPTH) {
             throw TranslatableTooDeepException::exceeds(self::MAX_DEPTH);
@@ -107,7 +82,7 @@ final class Translator
 
         foreach ($values as $key => $item) {
             if (is_array($item)) {
-                $inner = self::resolveArray($item, $defaultDomain, $mode, $depth + 1);
+                $inner = self::resolveArray($item, $defaultDomain, $hasWordPress, $depth + 1);
 
                 if ($inner !== $item) {
                     $resolved[$key] = $inner;
@@ -115,7 +90,7 @@ final class Translator
             } elseif ($item instanceof Stringable) {
                 // One check for every scalar; the two marked types are Stringable.
                 if ($item instanceof Translatable) {
-                    $resolved[$key] = self::translateText($item, $defaultDomain, $mode);
+                    $resolved[$key] = self::translateText($item, $defaultDomain, $hasWordPress);
                 } elseif ($item instanceof TranslatablePlural) {
                     $resolved[$key] = self::nooped($item, $defaultDomain);
                 }
@@ -125,11 +100,11 @@ final class Translator
         return $resolved;
     }
 
-    private static function translateText(Translatable $translatable, string $defaultDomain, int $mode): string
+    private static function translateText(Translatable $translatable, string $defaultDomain, bool $hasWordPress): string
     {
         $domain = $translatable->domain ?? $defaultDomain;
 
-        if ($mode === self::NO_WORDPRESS || ($mode === self::SOURCE_ONLY && ! is_textdomain_loaded($domain))) {
+        if (! $hasWordPress) {
             return $translatable->text;
         }
 
@@ -179,12 +154,8 @@ final class Translator
      * WordPress is there only when both __() and _x() exist: Laravel declares a __() of its own, with another signature,
      * and a text with a context calls _x().
      */
-    private static function mode(): int
+    private static function hasWordPress(): bool
     {
-        return match (true) {
-            ! function_exists('__') || ! function_exists('_x') => self::NO_WORDPRESS,
-            function_exists('get_locale') && function_exists('is_textdomain_loaded') && get_locale() === self::SOURCE_LOCALE => self::SOURCE_ONLY,
-            default => self::TRANSLATE,
-        };
+        return function_exists('__') && function_exists('_x');
     }
 }

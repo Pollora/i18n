@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /*
  * One request in a process of its own, where the only __() is Laravel's (another signature) and WordPress's
- * _x(), _n_noop(), get_locale() and is_textdomain_loaded() do not exist.
+ * _x(), _n_noop(), and the other WordPress functions do not exist.
  *
  * Prints a JSON object with what Translator::translate() and Translator::resolve() gave back.
  */

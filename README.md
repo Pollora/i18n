@@ -37,7 +37,7 @@ TranslatableRegistry::register(PostType::class, ['singular', 'plural']);
 $label = Translator::translate(PostType::class, 'singular', 'Book', 'my-domain');
 ```
 
-`translate()` returns the string unchanged when WordPress is not loaded, when the field is not declared translatable, or when the site runs in `en_US` with no catalogue loaded for the domain. Otherwise it makes one call to `__()`. It uses no reflection and reads no file.
+`translate()` returns the string unchanged when WordPress is not loaded or when the field is not declared translatable. Otherwise it makes one call to `__()`, whatever the locale and whether a catalogue is loaded, so that every `gettext` filter applies. It uses no reflection and reads no file.
 
 ## Text in an array of arguments
 

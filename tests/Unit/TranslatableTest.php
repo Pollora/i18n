@@ -62,7 +62,7 @@ describe('Translator::resolve() with WordPress loaded', function (): void {
     beforeEach(function (): void {
         require_once __DIR__.'/../Fixtures/wordpress-functions.php';
 
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0];
+        $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0];
     });
 
     it('replaces a Translatable on its own', function (): void {
@@ -140,23 +140,6 @@ describe('Translator::resolve() with WordPress loaded', function (): void {
         Translator::resolve($arguments, 'pollora');
 
         expect($arguments['a']['b'])->toBeInstanceOf(Translatable::class);
-    });
-
-    it('skips __() in the source locale when no catalogue is loaded for the domain', function (): void {
-        $GLOBALS['i18n_wordpress']['locale'] = 'en_US';
-
-        $resolved = Translator::resolve(['a' => new Translatable('Book'), 'b' => new Translatable('Post', null, 'verb')], 'pollora');
-
-        expect($resolved)->toBe(['a' => 'Book', 'b' => 'Post'])
-            ->and($GLOBALS['i18n_wordpress']['calls'])->toBe(0);
-    });
-
-    it('still translates in the source locale the domains that have a catalogue', function (): void {
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'en_US', 'loaded' => ['own'], 'calls' => 0];
-
-        $resolved = Translator::resolve([new Translatable('A', 'own'), new Translatable('B')], 'pollora');
-
-        expect($resolved)->toBe(['[own] A', 'B']);
     });
 
     it('accepts arrays nested up to the maximum depth', function (): void {
