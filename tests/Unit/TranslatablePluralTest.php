@@ -144,7 +144,7 @@ describe('Translator::resolve() of a TranslatablePlural with WordPress loaded', 
     beforeEach(function (): void {
         require_once __DIR__.'/../Fixtures/wordpress-functions.php';
 
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0];
+        $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0];
     });
 
     it('gives the structure of _n_noop() on its own, with the default domain', function (): void {
@@ -163,9 +163,7 @@ describe('Translator::resolve() of a TranslatablePlural with WordPress loaded', 
         expect($resolved)->toBe(['films' => pluralNoopWithContext('One film', '%d films', 'cinema', 'pollora')]);
     });
 
-    it('never gives a string, even in the source locale with no catalogue', function (): void {
-        $GLOBALS['i18n_wordpress']['locale'] = 'en_US';
-
+    it('never gives a string', function (): void {
         expect(Translator::resolve(new TranslatablePlural('One book', '%d books'), 'pollora'))
             ->toBe(pluralNoop('One book', '%d books', 'pollora'))
             ->and($GLOBALS['i18n_wordpress']['calls'])->toBe(0);
@@ -256,7 +254,7 @@ describe('Translator::resolve() of a TranslatablePlural against the functions of
 it('builds the structure by hand without _n_noop() and _nx_noop(), and calls them once WordPress provides them', function (): void {
     require_once __DIR__.'/../Fixtures/wordpress-functions.php';
 
-    $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0, 'noop_calls' => 0];
+    $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0, 'noop_calls' => 0];
     $arguments = [
         'plain' => new TranslatablePlural('One book', '%d books'),
         'context' => new TranslatablePlural('One film', '%d films', 'own', 'cinema'),

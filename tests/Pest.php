@@ -222,3 +222,32 @@ function cliAge(string $path, int $time): void
     touch($path, $time);
     clearstatcache();
 }
+
+/**
+ * Runs tests/Fixtures/filters.php, one simulated web request with no catalogue and some gettext filters, in a process of its own.
+ *
+ * @param  list<list<array{string, string|null}>>  $steps  The [domain, context] of the texts of each call of Translator::resolve()
+ * @param  array<string, string>  $filters  The hooks that have a callback, and what it appends to the translation
+ * @return array{results: list<string>, asked: list<array{string, string|null, string}>}
+ */
+function simulateFilteredRequest(array $steps, array $filters = [], bool $wordpress = true): array
+{
+    $scenario = json_encode(['wordpress' => $wordpress, 'filters' => $filters, 'plain' => $filters === [], 'steps' => $steps], JSON_THROW_ON_ERROR);
+    $process = proc_open([PHP_BINARY, '-d', 'display_errors=stderr', __DIR__.'/Fixtures/filters.php', $scenario], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+
+    if (! is_resource($process)) {
+        throw new RuntimeException('The simulated request could not start.');
+    }
+
+    $output = (string) stream_get_contents($pipes[1]);
+    $errors = (string) stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    if (proc_close($process) !== 0) {
+        throw new RuntimeException('The simulated request failed: '.$errors.$output);
+    }
+
+    /** @var array{results: list<string>, asked: list<array{string, string|null, string}>} */
+    return json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+}

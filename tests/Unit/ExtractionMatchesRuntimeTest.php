@@ -88,12 +88,12 @@ beforeEach(function (): void {
     require_once __DIR__.'/../Fixtures/wordpress-recording-functions.php';
 
     TranslatableRegistry::flush();
-    $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0, 'asked' => []];
+    $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0, 'asked' => []];
 });
 
 afterEach(function (): void {
     TranslatableRegistry::flush();
-    $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0, 'asked' => []];
+    $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0, 'asked' => []];
 });
 
 it('extracts exactly the strings the runtime asks gettext for, texts and plurals, nested, with their contexts and domains', function (): void {

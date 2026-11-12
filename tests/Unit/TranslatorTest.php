@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Pollora\I18n\Runtime\Translatable;
 use Pollora\I18n\Runtime\TranslatableRegistry;
 use Pollora\I18n\Runtime\Translator;
 
@@ -15,11 +16,21 @@ it('returns the string unchanged when WordPress is not loaded', function (): voi
     expect(simulateRequest('none')['result'])->toBe('Book');
 });
 
+/*
+ * Whether __() exists is a property of the process, and this process loads the stand-ins in other tests: the
+ * decision "WordPress is absent" is handed to the method that acts on it, as resolve() hands it.
+ */
+it('gives a Translatable back as its text when told WordPress is absent', function (): void {
+    $translateText = new ReflectionMethod(Translator::class, 'translateText');
+
+    expect($translateText->invoke(null, new Translatable('Book', 'own', 'noun'), 'pollora', false))->toBe('Book');
+});
+
 describe('with WordPress loaded', function (): void {
     beforeEach(function (): void {
         require_once __DIR__.'/../Fixtures/wordpress-functions.php';
 
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'fr_FR', 'loaded' => [], 'calls' => 0];
+        $GLOBALS['i18n_wordpress'] = ['filters' => [], 'calls' => 0];
 
         TranslatableRegistry::flush();
         TranslatableRegistry::register(stdClass::class, ['singular']);
@@ -41,16 +52,10 @@ describe('with WordPress loaded', function (): void {
             ->and($GLOBALS['i18n_wordpress']['calls'])->toBe(0);
     });
 
-    it('skips __() in the source locale when no catalogue is loaded for the domain', function (): void {
-        $GLOBALS['i18n_wordpress']['locale'] = 'en_US';
+    it('calls __() for every text, as many times as it is asked', function (): void {
+        Translator::translate(stdClass::class, 'singular', 'Book', 'pollora');
+        Translator::translate(stdClass::class, 'singular', 'Book', 'pollora');
 
-        expect(Translator::translate(stdClass::class, 'singular', 'Book', 'pollora'))->toBe('Book')
-            ->and($GLOBALS['i18n_wordpress']['calls'])->toBe(0);
-    });
-
-    it('still translates in the source locale when a catalogue is loaded for the domain', function (): void {
-        $GLOBALS['i18n_wordpress'] = ['locale' => 'en_US', 'loaded' => ['pollora'], 'calls' => 0];
-
-        expect(Translator::translate(stdClass::class, 'singular', 'Book', 'pollora'))->toBe('[pollora] Book');
+        expect($GLOBALS['i18n_wordpress']['calls'])->toBe(2);
     });
 });
