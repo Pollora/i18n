@@ -27,7 +27,7 @@
     "require-dev": {
         "nikic/php-parser": "^5.0",
         "pestphp/pest": "^3.8.2",
-        "pollora/harness": "^0.1.40",
+        "pollora/harness": "^0.1.41",
         "symfony/console": "^7.4 || ^8.0"
     },
     "suggest": {
