@@ -1,4 +1,10 @@
 <p align="center">
+  <a href="https://pollora.dev">
+    <img src="https://raw.githubusercontent.com/Pollora/.github/main/brand/banners/i18n.png" width="100%" alt="Pollora i18n: Translatable labels for constants and attributes">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://packagist.org/packages/pollora/i18n"><img src="https://img.shields.io/packagist/v/pollora/i18n" alt="Latest version"></a>
   <a href="https://packagist.org/packages/pollora/i18n"><img src="https://img.shields.io/packagist/dt/pollora/i18n" alt="Total downloads"></a>
   <a href="https://github.com/Pollora/i18n/actions/workflows/harness.yml"><img src="https://github.com/Pollora/i18n/actions/workflows/harness.yml/badge.svg" alt="Harness"></a>
