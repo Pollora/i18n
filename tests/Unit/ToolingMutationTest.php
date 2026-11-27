@@ -383,7 +383,9 @@ it('swallows the warning of the call it runs, and only that one', function (): v
         error_clear_last();
         $result = Quietly::call(static fn (): mixed => fopen('/nonexistent/pollora-i18n/file', 'rb'));
         $lastDuring = error_get_last();
-        fopen('/nonexistent/pollora-i18n/after', 'rb');
+        // Not a filesystem call: how many warnings a failed one raises depends on the wrapper on `file` (two with
+        // the one Pest runs a mutant under), and this only asks whether the previous handler is back
+        trigger_error('raised after the quiet call', E_USER_WARNING);
     } finally {
         restore_error_handler();
     }
@@ -391,5 +393,5 @@ it('swallows the warning of the call it runs, and only that one', function (): v
     expect($result)->toBeFalse()
         ->and($lastDuring)->toBeNull()
         ->and($seen)->toHaveCount(1)
-        ->and($seen[0])->toContain('/nonexistent/pollora-i18n/after');
+        ->and($seen[0])->toBe('raised after the quiet call');
 });
