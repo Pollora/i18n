@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use Pollora\I18n\Tooling\Catalog;
+use Pollora\I18n\Tooling\CatalogEntry;
+use Pollora\I18n\Tooling\CatalogMessage;
+
 /**
  * Runs tests/Fixtures/request.php, one simulated web request, in a process of its own.
  *
@@ -250,4 +254,33 @@ function simulateFilteredRequest(array $steps, array $filters = [], bool $wordpr
 
     /** @var array{results: list<string>, asked: list<array{string, string|null, string}>} */
     return json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+}
+
+/**
+ * A catalogue that uses everything the format has.
+ */
+function fullCatalog(): Catalog
+{
+    return new Catalog(
+        [
+            'Project-Id-Version' => 'app 1.0',
+            'Language' => 'ru',
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Plural-Forms' => 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : 1);',
+            'X-Empty' => '',
+        ],
+        [
+            new CatalogMessage(new CatalogEntry('Book', null, 'Books', ['translators: a noun'], ['src/a.php:3', 'src/b.php:40']), ['Книга', 'Книги', 'Книг'], ['fuzzy', 'php-format'], translatorComments: ['reviewed', '']),
+            new CatalogMessage(new CatalogEntry('Add', 'verb'), ['Ajouter']),
+            new CatalogMessage(new CatalogEntry('Add', 'noun'), ['Ajout']),
+            new CatalogMessage(new CatalogEntry('Escapes'), ["a\\b \"q\" \t\r\x01\x07\x08\x0b\x0c\x1f é 日本 \\n"]),
+            new CatalogMessage(new CatalogEntry("Multi\nline\n\nstring\n"), ["Multi\nligne\n"]),
+            new CatalogMessage(new CatalogEntry('Multi context', "first\nsecond", "Multi\nplurals"), ['Un', 'Deux', 'Trois']),
+            new CatalogMessage(new CatalogEntry('Untranslated')),
+            new CatalogMessage(new CatalogEntry('Empty plural', plural: 'Empty plurals')),
+            new CatalogMessage(new CatalogEntry('Gone', 'ctx', 'Gones'), ['Parti', 'Partis', 'Partis'], ['fuzzy'], true, ['was here']),
+            new CatalogMessage(new CatalogEntry("Gone\nmulti"), ['Parti'], obsolete: true),
+        ],
+        ['Translations for app.', '', 'Same licence.'],
+    );
 }
